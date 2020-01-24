@@ -3,13 +3,9 @@ package com.logycon.ryastore
 import java.io.OutputStream
 
 import org.eclipse.rdf4j.query.QueryLanguage
-import org.eclipse.rdf4j.query.resultio.sparqljson.SPARQLResultsJSONWriter
-import org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLWriter
-import org.eclipse.rdf4j.query.resultio.text.csv.SPARQLResultsCSVWriter
-import org.eclipse.rdf4j.query.resultio.text.tsv.SPARQLResultsTSVWriter
-import org.eclipse.rdf4j.query.resultio.{AbstractQueryResultWriter, TupleQueryResultWriter}
+import org.eclipse.rdf4j.query.resultio.{QueryResultIO, TupleQueryResultFormat}
 import org.eclipse.rdf4j.repository.Repository
-import org.slf4j.{LoggerFactory, Logger}
+import org.slf4j.{Logger, LoggerFactory}
 
 trait RyaStore {
   def repository: Repository
@@ -22,19 +18,11 @@ object SparqlOps {
 trait SparqlOps {
   lazy val repository: Repository = null
 
-  private def getTupleQueryResultHandler(contentType: String, outputStream: OutputStream): AbstractQueryResultWriter with TupleQueryResultWriter = {
-    contentType match {
-      case "text/tab-separated-values" => new SPARQLResultsTSVWriter(outputStream)
-      case "application/json" => new SPARQLResultsJSONWriter(outputStream)
-      case "text/csv"=> new SPARQLResultsCSVWriter(outputStream)
-      case _ => new SPARQLResultsXMLWriter(outputStream)
-    }
-  }
-
-  def performSelect(sql: String, outputStream: OutputStream, contentType: String): Unit = {
+  def performSelect(sql: String, outputStream: OutputStream, accept: String): Unit = {
     val conn = repository.getConnection
     val query = conn.prepareTupleQuery(QueryLanguage.SPARQL, sql)
-    val writer = getTupleQueryResultHandler(contentType, outputStream)
+    val resultFormat = QueryResultIO.getParserFormatForMIMEType(accept)
+    val writer = QueryResultIO.createTupleWriter(if (resultFormat.isPresent) resultFormat.get() else TupleQueryResultFormat.SPARQL, outputStream)
     query.evaluate(writer)
     conn.close()
   }
@@ -52,6 +40,7 @@ trait SparqlOps {
         SparqlOps.log.error(s"Error executing ${sql}", err)
         conn.rollback()
         conn.close()
+        throw err
       }
     }
   }

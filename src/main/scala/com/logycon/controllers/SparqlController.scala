@@ -5,6 +5,7 @@ import javax.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.http.{HttpStatus, ResponseEntity}
+import org.springframework.util.MultiValueMap
 import org.springframework.web.bind.annotation.{RequestBody, RequestHeader, RequestMapping, RequestMethod, RequestParam, RestController}
 
 @RestController
@@ -33,8 +34,17 @@ class SparqlController @Autowired() (val sparql: SparqlOps) {
       }
       case "exec" =>  {
         resp.setHeader("content-type", contentType)
-        sparql.performExec(query)
-        new ResponseEntity[Nothing](HttpStatus.OK)
+        try {
+          sparql.performExec(query)
+          new ResponseEntity[Nothing](HttpStatus.OK)
+        } catch {
+          case ex: Exception => {
+            val writer = resp.getWriter
+            writer.write(s"Error executing \n\n$query \n\nError: ${ex.getMessage}")
+            writer.flush()
+            new ResponseEntity[Nothing](HttpStatus.BAD_REQUEST)
+          }
+        }
       }
       case _ => {
         val writer = resp.getWriter
@@ -45,7 +55,7 @@ class SparqlController @Autowired() (val sparql: SparqlOps) {
     }
   }
 
-  @RequestMapping(path = Array("sparql"), method = Array(RequestMethod.GET), consumes = Array("text/plain"))
+  @RequestMapping(path = Array("sparql"), method = Array(RequestMethod.GET))
   def getSparql(
     @RequestHeader(required = true, defaultValue = "application/json") contentType: String,
     @RequestParam(required = true) query: String,
@@ -53,13 +63,28 @@ class SparqlController @Autowired() (val sparql: SparqlOps) {
     executeSparql(contentType, query, resp)
   }
 
-  @RequestMapping(path = Array("sparql"), method = Array(RequestMethod.POST), consumes = Array("text/plain"))
+  @RequestMapping(path = Array("sparql"),
+    method = Array(RequestMethod.POST),
+    consumes = Array("application/sparql-query"),
+  )
   def postSparql(
-    @RequestHeader(required = true, defaultValue = "application/json") contentType: String,
+    @RequestHeader(required = true, name = "Accept") accept: String,
     @RequestBody(required = true) query: String,
     resp: HttpServletResponse): ResponseEntity[Nothing] = {
-    executeSparql(contentType, query, resp)
+    executeSparql(accept, query, resp)
   }
 
+  @RequestMapping(path = Array("sparql"),
+    method = Array(RequestMethod.POST),
+    consumes = Array("application/x-www-form-urlencoded")
+  )
+  def postForm(
+    @RequestHeader(required = true, name = "Accept") accept: String,
+    @RequestBody(required = true) query: MultiValueMap[String, String],
+    resp: HttpServletResponse): ResponseEntity[Nothing] = {
+    val q: String = query.getFirst("query")
+    val resType = accept.split(",")(0)
+    executeSparql(resType, q, resp)
+  }
 
 }
