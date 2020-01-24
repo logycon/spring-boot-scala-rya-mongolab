@@ -25,3 +25,5 @@ yarn-error.log*
 
 /target
 .idea
+
+*.iml
