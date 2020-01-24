@@ -23,6 +23,7 @@ object SparqlOps {
 trait SparqlOps {
   lazy val repository: Repository = null
 
+  @throws[Exception]
   def performSelect(sql: String, outputStream: OutputStream, accept: String): Unit = {
 
     def acceptToResultWriter(accept: String): TupleQueryResultWriter = {
@@ -41,6 +42,7 @@ trait SparqlOps {
     conn.close()
   }
 
+  @throws[Exception]
   def performConstruct(sql: String, outputStream: OutputStream, accept: String): Unit = {
 
     def acceptToRDFFormat(accept: String): RDFFormat = {
@@ -62,6 +64,7 @@ trait SparqlOps {
     conn.close()
   }
 
+  @throws[Exception]
   def performExec(sql: String): Unit = {
     val conn = repository.getConnection
     try {

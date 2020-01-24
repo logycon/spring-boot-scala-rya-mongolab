@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.{RequestBody, RequestHeader, Requ
 @ComponentScan
 class SparqlController @Autowired() (val sparql: SparqlOps) {
 
-  private def executeSparql(contentType: String, query: String, resp: HttpServletResponse): ResponseEntity[Nothing] = {
+  private def executeSparql(contentType: String, query: String, resp: HttpServletResponse): Unit = {
 
     def getQueryType(query: String): String = {
       query match {
@@ -27,48 +27,47 @@ class SparqlController @Autowired() (val sparql: SparqlOps) {
 
     resp.setHeader("content-type", contentType)
     val queryType = getQueryType(query)
-    queryType match {
-
-      case "select" => {
-        sparql.performSelect(query, resp.getOutputStream, contentType)
-        ResponseEntity.ok.build
-        new ResponseEntity[Nothing](HttpStatus.OK)
-      }
-
-      case "construct" => {
-        sparql.performConstruct(query, resp.getOutputStream, contentType)
-        ResponseEntity.ok.build
-        new ResponseEntity[Nothing](HttpStatus.OK)
-      }
-
-      case "exec" =>  {
-        try {
-          sparql.performExec(query)
-          new ResponseEntity[Nothing](HttpStatus.OK)
-        } catch {
-          case ex: Exception => {
-            val writer = resp.getWriter
-            writer.write(s"Error executing \n\n$query \n\nError: ${ex.getMessage}")
-            writer.flush()
-            new ResponseEntity[Nothing](HttpStatus.BAD_REQUEST)
-          }
+    try {
+      queryType match {
+        case "select" => {
+          sparql.performSelect(query, resp.getOutputStream, contentType)
+          resp.setStatus(200)
         }
-      }
 
-      case _ => {
+        case "construct" => {
+          sparql.performConstruct(query, resp.getOutputStream, contentType)
+          resp.setStatus(200)
+        }
+
+        case "exec" => {
+          sparql.performExec(query)
+          resp.setStatus(200)
+        }
+
+        case _ => {
+          val writer = resp.getWriter
+          writer.write(s"Invalid query ${query}")
+          writer.flush()
+          resp.setStatus(500)
+        }
+
+      }
+    } catch {
+      case ex: Exception => {
+        resp.setStatus(500)
         val writer = resp.getWriter
-        writer.write(s"Invalid query ${query}")
+        writer.write(s"Error running \n\n$query \n\nError: ${ex.getMessage}")
         writer.flush()
-        new ResponseEntity[Nothing](HttpStatus.BAD_REQUEST)
       }
     }
+
   }
 
   @RequestMapping(path = Array("sparql"), method = Array(RequestMethod.GET))
   def getSparql(
     @RequestHeader(required = true, defaultValue = "application/json") contentType: String,
     @RequestParam(required = true) query: String,
-    resp: HttpServletResponse): ResponseEntity[Nothing] = {
+    resp: HttpServletResponse): Unit = {
     executeSparql(contentType, query, resp)
   }
 
@@ -79,7 +78,7 @@ class SparqlController @Autowired() (val sparql: SparqlOps) {
   def postSparql(
     @RequestHeader(required = true, name = "Accept", defaultValue = "application/json") accept: String,
     @RequestBody(required = true) query: String,
-    resp: HttpServletResponse): ResponseEntity[Nothing] = {
+    resp: HttpServletResponse): Unit = {
     executeSparql(accept, query, resp)
   }
 
@@ -90,7 +89,7 @@ class SparqlController @Autowired() (val sparql: SparqlOps) {
   def postForm(
     @RequestHeader(required = true, name = "Accept", defaultValue = "application/json") accept: String,
     @RequestBody(required = true) query: MultiValueMap[String, String],
-    resp: HttpServletResponse): ResponseEntity[Nothing] = {
+    resp: HttpServletResponse): Unit = {
     val q: String = query.getFirst("query")
     val resType = accept.split(",")(0)
     executeSparql(resType, q, resp)
