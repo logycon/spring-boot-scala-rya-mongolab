@@ -17,6 +17,7 @@ class SparqlController @Autowired() (val sparql: SparqlOps) {
     def getQueryType(query: String): String = {
       query match {
         case q if q.toLowerCase().contains("select") => "select"
+        case q if q.toLowerCase().contains("construct") => "construct"
         case q if q.toLowerCase().contains("insert") => "exec"
         case q if q.toLowerCase().contains("delete") => "exec"
         case q if q.toLowerCase().contains("update") => "exec"
@@ -24,16 +25,23 @@ class SparqlController @Autowired() (val sparql: SparqlOps) {
       }
     }
 
+    resp.setHeader("content-type", contentType)
     val queryType = getQueryType(query)
     queryType match {
+
       case "select" => {
-        resp.setHeader("content-type", contentType)
         sparql.performSelect(query, resp.getOutputStream, contentType)
         ResponseEntity.ok.build
         new ResponseEntity[Nothing](HttpStatus.OK)
       }
+
+      case "construct" => {
+        sparql.performConstruct(query, resp.getOutputStream, contentType)
+        ResponseEntity.ok.build
+        new ResponseEntity[Nothing](HttpStatus.OK)
+      }
+
       case "exec" =>  {
-        resp.setHeader("content-type", contentType)
         try {
           sparql.performExec(query)
           new ResponseEntity[Nothing](HttpStatus.OK)
@@ -46,6 +54,7 @@ class SparqlController @Autowired() (val sparql: SparqlOps) {
           }
         }
       }
+
       case _ => {
         val writer = resp.getWriter
         writer.write(s"Invalid query ${query}")
@@ -68,7 +77,7 @@ class SparqlController @Autowired() (val sparql: SparqlOps) {
     consumes = Array("application/sparql-query"),
   )
   def postSparql(
-    @RequestHeader(required = true, name = "Accept") accept: String,
+    @RequestHeader(required = true, name = "Accept", defaultValue = "application/json") accept: String,
     @RequestBody(required = true) query: String,
     resp: HttpServletResponse): ResponseEntity[Nothing] = {
     executeSparql(accept, query, resp)
@@ -79,7 +88,7 @@ class SparqlController @Autowired() (val sparql: SparqlOps) {
     consumes = Array("application/x-www-form-urlencoded")
   )
   def postForm(
-    @RequestHeader(required = true, name = "Accept") accept: String,
+    @RequestHeader(required = true, name = "Accept", defaultValue = "application/json") accept: String,
     @RequestBody(required = true) query: MultiValueMap[String, String],
     resp: HttpServletResponse): ResponseEntity[Nothing] = {
     val q: String = query.getFirst("query")

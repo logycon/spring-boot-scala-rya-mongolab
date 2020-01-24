@@ -3,8 +3,13 @@ package com.logycon.ryastore
 import java.io.OutputStream
 
 import org.eclipse.rdf4j.query.QueryLanguage
-import org.eclipse.rdf4j.query.resultio.{QueryResultIO, TupleQueryResultFormat}
+import org.eclipse.rdf4j.query.resultio.sparqljson.SPARQLResultsJSONWriter
+import org.eclipse.rdf4j.query.resultio.sparqlxml.SPARQLResultsXMLWriter
+import org.eclipse.rdf4j.query.resultio.text.csv.SPARQLResultsCSVWriter
+import org.eclipse.rdf4j.query.resultio.text.tsv.SPARQLResultsTSVWriter
+import org.eclipse.rdf4j.query.resultio.TupleQueryResultWriter
 import org.eclipse.rdf4j.repository.Repository
+import org.eclipse.rdf4j.rio.{RDFFormat, Rio}
 import org.slf4j.{Logger, LoggerFactory}
 
 trait RyaStore {
@@ -19,10 +24,40 @@ trait SparqlOps {
   lazy val repository: Repository = null
 
   def performSelect(sql: String, outputStream: OutputStream, accept: String): Unit = {
+
+    def acceptToResultWriter(accept: String): TupleQueryResultWriter = {
+      accept match {
+        case "text/tab-separated-values" => new SPARQLResultsTSVWriter(outputStream)
+        case "application/json" => new SPARQLResultsJSONWriter(outputStream)
+        case "text/csv" => new SPARQLResultsCSVWriter(outputStream)
+        case _ => new SPARQLResultsXMLWriter(outputStream)
+      }
+    }
+
     val conn = repository.getConnection
     val query = conn.prepareTupleQuery(QueryLanguage.SPARQL, sql)
-    val resultFormat = QueryResultIO.getParserFormatForMIMEType(accept)
-    val writer = QueryResultIO.createTupleWriter(if (resultFormat.isPresent) resultFormat.get() else TupleQueryResultFormat.SPARQL, outputStream)
+    val writer = acceptToResultWriter(accept)
+    query.evaluate(writer)
+    conn.close()
+  }
+
+  def performConstruct(sql: String, outputStream: OutputStream, accept: String): Unit = {
+
+    def acceptToRDFFormat(accept: String): RDFFormat = {
+      accept match {
+        case "application/json" => RDFFormat.RDFJSON
+        case "application/ntriples" => RDFFormat.NTRIPLES
+        case "application/x-turtle" => RDFFormat.TURTLE
+        case "text/rdf+n3" => RDFFormat.N3
+        case "application/ld+json" => RDFFormat.JSONLD
+        case _ => RDFFormat.RDFXML
+      }
+    }
+
+    val conn = repository.getConnection
+    val query = conn.prepareGraphQuery(QueryLanguage.SPARQL, sql)
+    val rdfFormat = acceptToRDFFormat(accept)
+    val writer = Rio.createWriter(rdfFormat, outputStream)
     query.evaluate(writer)
     conn.close()
   }
