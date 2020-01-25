@@ -12,16 +12,14 @@ import org.eclipse.rdf4j.repository.Repository
 import org.eclipse.rdf4j.rio.{RDFFormat, Rio}
 import org.slf4j.{Logger, LoggerFactory}
 
-trait RyaStore {
-  def repository: Repository
-}
+trait RyaStore
 
 object SparqlOps {
   val log: Logger = LoggerFactory.getLogger("Sparql")
 }
 
 trait SparqlOps {
-  lazy val repository: Repository = null
+  def repository: Repository
 
   @throws[Exception]
   def performSelect(sql: String, outputStream: OutputStream, accept: String): Unit = {
