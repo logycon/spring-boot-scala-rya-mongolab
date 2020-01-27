@@ -7,8 +7,8 @@ re: this [conversation](https://twitter.com/bobdc/status/1220390987199021056).
    1. Install [JDK 8](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html) and set JAVA_HOME environment variable
    2. Install local [MongoDB Community Server](https://www.mongodb.com/download-center/community) OR use free 512mb version at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
    2. git clone [https://github.com/logycon/spring-boot-scala-rya-mongolab.git](https://github.com/logycon/spring-boot-scala-rya-mongolab.git).
-   3. Edit *run.cmd* file to specify *spring.data.mongodb.*** properties (no changes needed if running against local MongoDB on default port)
-   4. Start by running *run.cmd*
+   3. Edit *run_with_mvn.cmd* (if maven is installed) or *run_with_mvnw.cmd* file to specify *spring.data.mongodb.*** properties (no changes needed if running against local MongoDB on default port)
+   4. Start by running *run_with_mvn.cmd* (if maven is installed) or *run_with_mvnw.cmd*
    5. To execute SPARQL there are several options:
         - Easiest: Use SPARQL playground app at https://logycon.github.io/sparql-playground-app/ . SPARQL endpoint for your local service
            will be http://localhost:8080/sparql
